@@ -267,6 +267,7 @@ class Auto_encoder(object):
                 self.en_feature_map = tf.stack(self.en_feature_map, axis=0)
             with tf.variable_scope("Forecaster", reuse=tf.AUTO_REUSE):
                 for i in range(self.out_seq):
+
                     self.rnn_decoder(i)
                     self.de_feature_map.append(self.rnn_states[0])
 
