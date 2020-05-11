@@ -48,6 +48,7 @@ class Auto_encoder(object):
         self.CL_conv = []
         self.CL_bias = []
         self.incept = incept
+        self.decoder_input=None
 
     def get_input_resize(self, input):
         # for i in range(3):
@@ -98,7 +99,15 @@ class Auto_encoder(object):
             self.rnn_states[i] = states
 
     def rnn_decoder(self, time_step):
-        in_data = None
+        if c.DECODER_INPUT:
+            in_data = self.decoder_input
+            de_max_pool=maxpool2d(in_data,name='de_max_pool',kshape=[1,7,7,1],strides=[1,3,3,1])
+            de_conv1=conv2d(de_max_pool,name='de_conv1',kshape=[5,5,1,32],strides=[1,2,2,1])
+
+            in_data=conv2d(de_conv1,name='de_conv2',kshape=[3,3,32,64],strides=[1,2,2,1])
+
+        else:
+            in_data=None
         for i in range(self.stack_num - 1, -1, -1):
             output, states = self.decoder_rnn_blocks[i](inputs=in_data,
                                                         state=self.rnn_states[i])
@@ -141,7 +150,9 @@ class Auto_encoder(object):
             #                     name="Pred2")
             self.pred_logit.append(tf.reshape(cl_pred, shape=(self.batch, 1, self.H, self.W, 17)))
         # pred = tf.nn.leaky_relu(tf.nn.bias_add(pred, self.final_bias[2]))
-        self.result.append(tf.reshape(pred, shape=(self.batch, 1, self.H, self.W, 1)))
+        self.decoder_input=pred
+        pred=tf.reshape(pred, shape=(self.batch, 1, self.H, self.W, 1))
+        self.result.append(pred)
 
     def build_graph(self, in_data):
         feature_map_H = []
@@ -196,6 +207,7 @@ class Auto_encoder(object):
                                                              dtype=tf.float32))
             self.de_state_conv_bias.append(tf.get_variable(name=f"DeState_conv{i}_b",
                                                            shape=[self.gru_filters[i]]))
+
         self.rnn_states = []
         for block in self.encoder_rnn_blocks:
             self.rnn_states.append(block.zero_state())
@@ -242,14 +254,25 @@ class Auto_encoder(object):
                                                                  chanel=self.de_gru_in_chanel[i])
                                                )
             else:
-                self.decoder_rnn_blocks.append(ConvGRUCell(num_filter=self.gru_filters[i],
-                                                           b_h_w=(self.batch,
-                                                                  feature_map_H[i],
-                                                                  feature_map_W[i]),
-                                                           h2h_kernel=self.h2h_kernel[i],
-                                                           i2h_kernel=self.i2h_kernel[i],
-                                                           name="f_cgru_" + str(i),
-                                                           chanel=self.de_gru_in_chanel[i]))
+                if i==2:
+                    self.decoder_rnn_blocks.append(ConvGRUCell(num_filter=self.gru_filters[i],
+                                                               b_h_w=(self.batch,
+                                                                      feature_map_H[i],
+                                                                      feature_map_W[i]),
+                                                               h2h_kernel=self.h2h_kernel[i],
+                                                               i2h_kernel=self.i2h_kernel[i],
+                                                               name="f_cgru_" + str(i),
+                                                               chanel=self.de_gru_in_chanel[i]))
+                else:
+                    self.decoder_rnn_blocks.append(ConvGRUCell(num_filter=self.gru_filters[i],
+                                                               b_h_w=(self.batch,
+                                                                      feature_map_H[i],
+                                                                      feature_map_W[i]),
+                                                               h2h_kernel=self.h2h_kernel[i],
+                                                               i2h_kernel=self.i2h_kernel[i],
+                                                               name="f_cgru_" + str(i),
+                                                               chanel=self.de_gru_in_chanel[i]))
+
             self.deconv_kernels.append(tf.get_variable(name=f"Deconv{i}_W",
                                                        shape=self.deconv_kernels_shape[i],
                                                        initializer=xavier_initializer(uniform=False),
@@ -265,6 +288,8 @@ class Auto_encoder(object):
                     self.rnn_encoder(in_data[:, i, ...], i)
                     self.en_feature_map.append(self.rnn_states[0])
                 self.en_feature_map = tf.stack(self.en_feature_map, axis=0)
+            if c.DECODER_INPUT:
+                self.decoder_input=in_data[:, -1, ...]
             with tf.variable_scope("Forecaster", reuse=tf.AUTO_REUSE):
                 for i in range(self.out_seq):
 
