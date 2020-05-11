@@ -128,15 +128,12 @@ class Iterator():
         self.count2=0
 
 if __name__ == '__main__':
-    iterator=Iterator(1)
-
+    iterator=Iterator(2)
+    i=0
     data= iterator.get_batch()
-    print(data.shape)
-    data = np.reshape(data, [1*25*360*360])
-    data=(data+2)//5
-    logit=np.zeros([1*25*360*360,80//5+1])
-    for i in range(len(data)):
-        logit[i,data[i]]=1
-    logit=np.reshape(logit,[1,25,360,360,17])
+    while data is not None:
+        i+=2
+        print(i,data.shape)
+        data= iterator.get_batch()
+    # print(data.shape)
 
-    print(np.max(data))

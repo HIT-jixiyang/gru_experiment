@@ -27,7 +27,7 @@ def check_dir(dir):
         os.makedirs(dir)
 
 
-BASE_PATH = '/extend/gru_tf_data/gru_experiment/focal_loss'
+BASE_PATH = '/extend/gru_tf_data/gru_experiment/decoder_input'
 # BASE_PATH='/extend/gru_tf_data/gru_experiment/ln_multi_scale_221'
 SAVE_PATH = os.path.join(BASE_PATH, 'Save')
 SAVE_SUMMARY = os.path.join(BASE_PATH, 'Summary')

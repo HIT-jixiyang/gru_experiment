@@ -368,7 +368,7 @@ def multi_category_focal_loss1(y_true, y_pred):
     epsilon = 1.e-7
     gamma = 2.0
     # alpha = tf.constant([[2],[1],[1],[1],[1]], dtype=tf.float32)
-    alpha = tf.constant([[1], [1], [1], [1], [1], [1], [1], [1], [2], [2], [3], [3], [4], [4], [1], [1], [1]],
+    alpha = tf.constant([[1], [1], [1], [1], [1], [1], [1], [1], [1.5], [1.5], [1.5], [1.5], [2.0], [2.0], [2.0], [1], [1]],
                         dtype=tf.float32)
 
     y_true = tf.cast(y_true, tf.float32)

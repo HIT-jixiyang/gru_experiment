@@ -27,7 +27,7 @@ def check_dir(dir):
         os.makedirs(dir)
 
 
-BASE_PATH = '/extend/gru_tf_data/gru_experiment/focal_loss'
+BASE_PATH = '/extend/gru_tf_data/gru_experiment/dense'
 # BASE_PATH='/extend/gru_tf_data/gru_experiment/ln_multi_scale_221'
 SAVE_PATH = os.path.join(BASE_PATH, 'Save')
 SAVE_SUMMARY = os.path.join(BASE_PATH, 'Summary')
@@ -42,10 +42,10 @@ check_dir(DISPLAY_PATH)
 check_dir(VALID_PATH)
 check_dir(TEST_PATH)
 
-TRAIN_DATA_PATH = '/extend/radar_crop_data_360/train'
-VALID_DATA_PATH = '/extend/radar_crop_data_360/valid'
-TEST_RADAR_PNG_PATH = '/extend/2019_png/'
-# TEST_RADAR_PNG_PATH='/extend/2019_png'
+TRAIN_DATA_PATH = '/extend/radar_crop_data_360/radar_crop_data_360/train'
+VALID_DATA_PATH = '/extend/radar_crop_data_360/radar_crop_data_360/valid'
+# TEST_RADAR_PNG_PATH = '/extend/hw_compete/test'
+TEST_RADAR_PNG_PATH='/extend/2019_png'
 
 TEST_STRIDE = 5
 TEST_TIME = [
@@ -75,18 +75,18 @@ TEST_TIME = [
 TRAIN_SEQ = 40000
 VALID__SEQ = 1000
 MIN_MAX_NORM = False
-BATCH_SIZE = 4
-W = 360
-H = 360
+BATCH_SIZE = 3
+W = 256
+H = 256
 OUT_SEQ = 20
-IN_SEQ = 5
+IN_SEQ = 10
 TEST_OUT_SEQ = 20
 W_test = 912
 H_test = 912
 IN_CHANEL = 2
 MAX_ITER = 250000
-SAVE_ITER = 1000
-VALID_ITER = 1000
+SAVE_ITER = 3000
+VALID_ITER = 3000
 SUMMARY_ITER = 5
 CL = True
 if CL:
@@ -94,20 +94,26 @@ if CL:
 else:
     resize = 1
 # generator--------------------------------
-GEN_ENCODER_GRU_FILTER=(64,192,192)
-GEN_ENCODER_GRU_INCHANEL=(8+resize,128+resize,192+resize)
-GEN_CONV_KERNEL = ((7, 7, IN_CHANEL, 8),
-               (5, 5, 64, 128),
-               (3, 3, 192, 192))
-GEN_CONV_STRIDE = (3, 2, 2)
-GEN_DECONV_KERNEL = ((7, 7, 8, 64),
-                 (5, 5, 128, 192),
-                 (4, 4, 192, 192))
-GEN_DECONV_STRIDE = (3, 2, 2)
-GEN_DECODER_GRU_FILTER= (64, 192, 192)
+dense_layers_num=[4, 8, 16]
+growth_rate_Ks=[2,4,8]
+#先dense，再下采样
+GEN_ENCODER_GRU_FILTER=(64,128,192)
+GEN_ENCODER_GRU_INCHANEL=(16,128,192)
+GF=GEN_ENCODER_GRU_FILTER
+GEI=GEN_ENCODER_GRU_INCHANEL
+GEN_CONV_KERNEL = ((3, 3, 10, GEI[0]),
+               (3, 3, GF[0] + dense_layers_num[1] * growth_rate_Ks[1], GEI[1]),
+               (3, 3, GF[1] + dense_layers_num[2] * growth_rate_Ks[2], GEI[2]))
+GEN_CONV_STRIDE = (2, 2, 2)
 GEN_DECODER_GRU_INCHANEL = (128, 192, 192)
-GEN_I2H_KERNEL = [5, 3, 3]
-GEN_H2H_KERNEL = [7, 5, 3]
+GDI=GEN_DECODER_GRU_INCHANEL
+GEN_DECONV_KERNEL = ((3, 3, 16, GF[0] + dense_layers_num[0] * growth_rate_Ks[0]),
+               (3, 3, 128, GF[1] + dense_layers_num[1] * growth_rate_Ks[1]),
+               (3, 3, 192, GF[2] + dense_layers_num[2] * growth_rate_Ks[2]))
+GEN_DECONV_STRIDE = (2, 2, 2)
+GEN_DECODER_GRU_FILTER= (64, 128, 192)
+GEN_I2H_KERNEL = [3, 3, 3]
+GEN_H2H_KERNEL = [3, 3, 3]
 GEN_LR = 0.0001
 ZR_a = 58.53
 ZR_b = 1.56
@@ -129,16 +135,16 @@ D_DECODER_GRU_FILTER = (64, 192, 192)
 D_DECODER_GRU_INCHANEL = (64, 192, 192)
 D_I2H_KERNEL = [5, 3, 3]
 D_H2H_KERNEL = [7, 5, 3]
-D_LR = 0.001
+D_LR = 0.0001
 USE_BALANCED_LOSS = False
 lam_l1 = 1
 lam_l2 = 0
 lam_grad1 = 0
 lam_grad2 = 0
-lam_max = 0
+lam_max = 0.001
 lam_gdl = 0
 lam_ssim = 0
-lam_cl = 1
+lam_cl = 0
 LN = False
 IN = False
 lam_hinge = 0

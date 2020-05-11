@@ -4,12 +4,14 @@ from generator import generator
 from iterator import Iterator
 from tf_utils import *
 from utils import *
+import traceback
 import cv2
 def get_index(array):
     m=np.max(array)
     for i in range(len(array)):
         if array[i]==m:
             return i
+    return 0
 
 
 def Guass_blur(data):
@@ -126,7 +128,7 @@ def reg_classfi_model(paras, mode='train', test_path='test', start_iter=0):
         if mode == 'valid':
             batch_num = c.VALID__SEQ // batch_size
             evaluator = Evaluator(os.path.join(c.SAVE_METRIC, str(start_iter)), seq=c.OUT_SEQ)
-            evaluator_cl = Evaluator(os.path.join(c.SAVE_METRIC, str(start_iter)+'cl'), seq=c.OUT_SEQ)
+            evaluator_cl = Evaluator(os.path.join(c.SAVE_METRIC, str(start_iter) + 'cl'), seq=c.OUT_SEQ)
             valid_log = open(os.path.join(c.VALID_PATH, 'valid.log'), 'a')
             mae_total = 0
             mse_total = 0
@@ -134,14 +136,15 @@ def reg_classfi_model(paras, mode='train', test_path='test', start_iter=0):
             for j in range(batch_num):
                 valid_data, indexes = iterator.get_valid_batch()
                 try:
-                    valid_data=Guass_blur(valid_data)
+                    valid_data = Guass_blur(valid_data)
 
                     data = np.reshape(valid_data, [batch_size, c.IN_SEQ + c.OUT_SEQ, c.H, c.W, 1])
 
                     real_in_data = data[:, 0:c.IN_SEQ, :]
-                    real_pred_data = data[:, c.IN_SEQ:]
+                    # real_pred_data = data[:, c.IN_SEQ:]
                     th_data = (data + 2) // 5
                     th_real_in_data = th_data[:, 0:c.IN_SEQ, :]
+                    th_real_in_data = th_real_in_data * 5
                     th_real_pred_data = th_data[:, c.IN_SEQ:]
                     th_real_pred_data = np.reshape(th_real_pred_data, [batch_size * c.OUT_SEQ * c.H * c.W])
 
@@ -154,33 +157,33 @@ def reg_classfi_model(paras, mode='train', test_path='test', start_iter=0):
 
                     real_pred_data = data[:, c.IN_SEQ:]
 
-                    pred, _pred_logit,cl_loss, mae, mse, grad_1, grad_2, max_loss, ssim = \
+                    pred, _pred_logit, cl_loss, mae, mse, grad_1, grad_2, max_loss, ssim = \
                         sess.run(
-                            [gen_pred, pred_logit,CL_LOSS, G_MAE, G_MSE, grad_loss_1, grad_loss_2, MAX_LOSS, SSIM],
+                            [gen_pred, pred_logit, CL_LOSS, G_MAE, G_MSE, grad_loss_1, grad_loss_2, MAX_LOSS,
+                             SSIM],
                             {
                                 real_in: real_in_data,
                                 real_pred: real_pred_data,
                                 real_logits: logit
                             }
                         )
-                    focal_pred=np.zeros([batch_size*c.OUT_SEQ*c.H*c.W,1])
+                    focal_pred = np.zeros([batch_size * c.OUT_SEQ * c.H * c.W, 1])
 
                     for index in range(len(_pred_logit)):
-                        focal_pred[index]=get_index(_pred_logit[index])*5
+                        focal_pred[index] = get_index(_pred_logit[index]) * 5
 
-
-                    focal_pred=np.reshape(focal_pred,[batch_size,c.OUT_SEQ,c.H,c.W,1])
-                    _pred_logit=np.reshape(_pred_logit,[batch_size,c.OUT_SEQ,c.H,c.W,17])
+                    focal_pred = np.reshape(focal_pred, [batch_size, c.OUT_SEQ, c.H, c.W, 1])
+                    _pred_logit = np.reshape(_pred_logit, [batch_size, c.OUT_SEQ, c.H, c.W, 17])
 
                     evaluator.evaluate(real_pred_data, pred)
                     evaluator_cl.evaluate(real_pred_data, pred)
-
-                    for b in range(batch_size):
-                        save_pred(data[b], pred[b], indexes[b],
-                                  os.path.join(c.VALID_PATH, str(start_iter) + 'valid'))
-                    for b in range(batch_size):
-                        save_pred(data[b], focal_pred[b], indexes[b],
-                                  os.path.join(c.VALID_PATH, str(start_iter) + 'focalvalid'))
+                    if j % 10 == 0:
+                        for b in range(batch_size):
+                            save_pred(data[b], pred[b], indexes[b],
+                                      os.path.join(c.VALID_PATH, str(start_iter) + 'valid'))
+                        for b in range(batch_size):
+                            save_pred(data[b], focal_pred[b], indexes[b],
+                                      os.path.join(c.VALID_PATH, str(start_iter) + 'focalvalid'))
                     logging.info("valid step{} mae {} mse {}".format(j, mae, mse))
 
                     logging.info("pred max{} min {}".format(np.max(pred), np.min(pred)))
@@ -188,7 +191,9 @@ def reg_classfi_model(paras, mode='train', test_path='test', start_iter=0):
                     mse_total += mse
                     cl_loss_total += cl_loss
 
-                except:
+                except Exception as e:
+                    print(e)
+                    traceback.print_exc()
                     continue
             mae_total = mae_total / batch_num
             mse_total = mse_total / batch_num
@@ -196,6 +201,7 @@ def reg_classfi_model(paras, mode='train', test_path='test', start_iter=0):
             valid_log.write('mae-{}  mse-{} cl_loss-{}'.format(mae_total, mse_total, cl_loss_total))
             valid_log.flush()
             evaluator.done()
+            evaluator_cl.done()
         if mode == 'test':
             for t in c.TEST_TIME:
                 iterator = Iterator(c.BATCH_SIZE, test_time=t)
@@ -312,17 +318,15 @@ def reg_classfi_model(paras, mode='train', test_path='test', start_iter=0):
                             data = np.reshape(valid_data, [batch_size, c.IN_SEQ + c.OUT_SEQ, c.H, c.W, 1])
 
                             real_in_data = data[:, 0:c.IN_SEQ, :]
-                            real_pred_data = data[:, c.IN_SEQ:]
+                            # real_pred_data = data[:, c.IN_SEQ:]
                             th_data = (data + 2) // 5
                             th_real_in_data = th_data[:, 0:c.IN_SEQ, :]
+                            th_real_in_data = th_real_in_data * 5
                             th_real_pred_data = th_data[:, c.IN_SEQ:]
                             th_real_pred_data = np.reshape(th_real_pred_data, [batch_size * c.OUT_SEQ * c.H * c.W])
 
-                            logit = np.zeros([batch_size * c.OUT_SEQ * c.H * c.W, 17])
-                            for i in range(len(data)):
-                                logit[i, th_real_pred_data[i]] = 1
-                            logit = np.reshape(logit, [batch_size * c.OUT_SEQ * c.H * c.W, 17])
-
+                            n_values = 17
+                            logit = np.eye(n_values)[th_real_pred_data]
                             real_in_data = np.concatenate((real_in_data, th_real_in_data), axis=-1)
 
                             real_pred_data = data[:, c.IN_SEQ:]
@@ -347,7 +351,7 @@ def reg_classfi_model(paras, mode='train', test_path='test', start_iter=0):
 
                             evaluator.evaluate(real_pred_data, pred)
                             evaluator_cl.evaluate(real_pred_data, pred)
-                            if i % 10 == 0:
+                            if j % 10 == 0:
                                 for b in range(batch_size):
                                     save_pred(data[b], pred[b], indexes[b],
                                               os.path.join(c.VALID_PATH, str(iter) + 'valid'))
@@ -369,6 +373,7 @@ def reg_classfi_model(paras, mode='train', test_path='test', start_iter=0):
                     valid_log.write('mae-{}  mse-{} cl_loss-{}'.format(mae_total, mse_total, cl_loss_total))
                     valid_log.flush()
                     evaluator.done()
+                    evaluator_cl.done()
 
 
 def began_train(paras, mode='train', test_path='test', start_iter=0):
@@ -575,7 +580,7 @@ def began_train(paras, mode='train', test_path='test', start_iter=0):
                 data = iterator.get_batch()
                 if data is None:
                     continue
-                print(data.shape)
+                print(iter,data.shape)
                 data = np.reshape(data, [batch_size, c.IN_SEQ + c.OUT_SEQ, c.H, c.W, 1])
                 real_in_data = data[:, 0:c.IN_SEQ, :]
                 real_pred_data = data[:, c.IN_SEQ:]
@@ -644,8 +649,8 @@ if __name__ == '__main__':
     os.environ['CUDA_VISIBLE_DEVICES'] = '0'
     # began_train('/extend/gru_tf_data/gru_tf_grad/Save/model.ckpt-199999',start_iter=120000,mode='test',test_path='199999-qpe-345678')
     # began_train(paras='/extend/gru_tf_data/gru_experiment/instan_221_online_reuse/Save/model.ckpt-149999',start_iter=39999,mode='test',test_path='134999')
-    reg_classfi_model(paras='/extend/gru_tf_data/gru_experiment/focal_loss/Save/model.ckpt-90999',mode='train',start_iter=91000)
-    # began_train(paras='/extend/gru_tf_data/gru_experiment/ln_multi_scale_221/Save/model.ckpt-139999',mode='train',start_iter=350000)
+    reg_classfi_model(paras=None,mode='train',start_iter=0)
+    began_train(paras=None,mode='train')
     # ite = Iterator(2)
     # data = ite.get_batch()
     # print(getHist(data))

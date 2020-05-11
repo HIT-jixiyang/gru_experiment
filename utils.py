@@ -705,7 +705,7 @@ def getHist(data):
                     hist[i,j]=(n1-n2)
     return np.sum(hist,axis=0)
 if __name__ == '__main__':
-    hist_color_valid('93999valid')
+    hist_color_valid('4999focalvalid')
     # hist_color_test('404999')
     # pass
     # color_online()

@@ -7,13 +7,14 @@ import config as c
 class ConvGRUCell(object):
     def __init__(self, num_filter, b_h_w,
                  h2h_kernel, i2h_kernel,
-                 name, chanel, dtype=tf.float32):
+                 name, chanel, dtype=tf.float32,stride=1):
         self._name = name
         self._batch, self._h, self._w = b_h_w
         self._num_filter = num_filter
         self._dtype = dtype
         self._h2h_k = h2h_kernel
         self._i2h_k = i2h_kernel
+        self.stride=stride
         self.init_params(chanel)
 
     @property
@@ -75,7 +76,7 @@ class ConvGRUCell(object):
         if inputs is not None:
             i2h = tf.nn.conv2d(inputs,
                                self._Wi,
-                               strides=(1, 1, 1, 1),
+                               strides=(1, self.stride,self.stride, 1),
                                padding="SAME",
                                name=self._name+"_conv1")
             i2h = tf.nn.bias_add(i2h, self._bi)
