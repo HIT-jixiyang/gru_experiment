@@ -101,9 +101,8 @@ class Auto_encoder(object):
     def rnn_decoder(self, time_step):
         if c.DECODER_INPUT:
             in_data = self.decoder_input
-            # de_max_pool=maxpool2d(in_data,name='de_max_pool',kshape=[1,7,7,1],strides=[1,3,3,1])
-            de_conv0=conv2d(in_data,name='de_conv0',kshape=[7,7,1,8],strides=[1,3,3,1])
-            de_conv1=conv2d(de_conv0,name='de_conv1',kshape=[3,3,8,32],strides=[1,2,2,1])
+            de_max_pool=maxpool2d(in_data,name='de_max_pool',kshape=[1,7,7,1],strides=[1,3,3,1])
+            de_conv1=conv2d(de_max_pool,name='de_conv1',kshape=[5,5,1,32],strides=[1,2,2,1])
 
             in_data=conv2d(de_conv1,name='de_conv2',kshape=[3,3,32,64],strides=[1,2,2,1])
 
@@ -141,7 +140,7 @@ class Auto_encoder(object):
                                   name="final_conv")
         pred = tf.nn.leaky_relu(tf.nn.bias_add(conv_final, self.final_bias[0]))
         if c.CL:
-            cl_final = tf.nn.conv2d(pred, self.CL_conv[0], strides=(1, 1, 1, 1), padding="SAME",
+            cl_final = tf.nn.conv2d(in_data, self.CL_conv[0], strides=(1, 1, 1, 1), padding="SAME",
                                     name="final_conv")
             cl_pred = tf.nn.leaky_relu(tf.nn.bias_add(cl_final, self.CL_bias[0]))
             # pred = tf.nn.conv2d(conv_final, filter=self.final_conv[1], strides=(1, 1, 1, 1), padding="SAME",
@@ -223,7 +222,7 @@ class Auto_encoder(object):
                                                shape=[1]))
         if c.CL:
             self.CL_conv.append(tf.get_variable(name="CL_conv1_W",
-                                                shape=(3, 3, 1, 17),
+                                                shape=(3, 3, c.GEN_DECONV_KERNEL[0][-2], 17),
                                                 initializer=xavier_initializer(uniform=False),
                                                 dtype=tf.float32))
             self.CL_bias.append(tf.get_variable(name="CL_conv1_b",

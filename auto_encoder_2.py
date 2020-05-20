@@ -141,7 +141,7 @@ class Auto_encoder(object):
                                   name="final_conv")
         pred = tf.nn.leaky_relu(tf.nn.bias_add(conv_final, self.final_bias[0]))
         if c.CL:
-            cl_final = tf.nn.conv2d(pred, self.CL_conv[0], strides=(1, 1, 1, 1), padding="SAME",
+            cl_final = tf.nn.conv2d(in_data, self.CL_conv[0], strides=(1, 1, 1, 1), padding="SAME",
                                     name="final_conv")
             cl_pred = tf.nn.leaky_relu(tf.nn.bias_add(cl_final, self.CL_bias[0]))
             # pred = tf.nn.conv2d(conv_final, filter=self.final_conv[1], strides=(1, 1, 1, 1), padding="SAME",
@@ -223,7 +223,7 @@ class Auto_encoder(object):
                                                shape=[1]))
         if c.CL:
             self.CL_conv.append(tf.get_variable(name="CL_conv1_W",
-                                                shape=(3, 3, 1, 17),
+                                                shape=(3, 3, c.GEN_DECONV_KERNEL[0][-2], 17),
                                                 initializer=xavier_initializer(uniform=False),
                                                 dtype=tf.float32))
             self.CL_bias.append(tf.get_variable(name="CL_conv1_b",
